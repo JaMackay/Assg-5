@@ -1,0 +1,197 @@
+---
+title: "Protein and DNA sequence analysis"
+author: "Jamie"
+date: "February 6, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE
+)
+# install libraries and enter AA/DNA sequences
+library(BiocManager)
+library(rentrez)
+library(annotate)
+library(ape)
+library(ggplot2)
+library(ggtree)
+library(reshape2)
+
+AAseq <- c('NPNQKITTIGSICMVIGIVSLMLQIGNIISIWVSHSIQTGNQHQAEPCNQSIITYENNTWVNQTYVNISNTNFLTEKAVASVTLAGNSSLCPISGWAVYSKDNGIRIGSKGDVFVIREPFISCSHLECRTFFLTQGALLNDKHSNGTVKDRSPHRTLMSCPVGEAPSPYNSRFESVAWSASACHDGTSWLTIGISGPDNGAVAVLKYNGIITDTIKSWRNNIMRTQESECACVNGSCFTVMTDGPSNGQASYKIFRIEKGKVVKSAELNAPNYHYEECSCYPDAGEITCVCRDNWHGSNRPWVSFNQNLEYRIGYICSGVFGDNPRPNDGTGSCGPVSPKGAYGIKGFSFKYGNGVWIGRTKSTNSRSGFEMIWDPNGWTGTDSNFSVKQDIVAITDWSGYSGSFVQHPELTGLDCIRPCFWVELIRGRPKESTIWTSGSSISFCGVNSDTVGWSWPDGAELPFTIDK')
+
+DNAseq <- c('AGCAAAAGCAGGAGTTCAAAATGAATCCAAATCAGAAGATAACAACCATTGGATCAATCTGTATGGTAATTGGAATAGTTAGCTTGATGTTACAAATTGGGAACATAATCTCAATATGGGTTAGTCATTCAATTCAAACAGGGAATCAACACCAGGCTGAACCATGCAATCAAAGCATTATTACTTATGAAAACAACACCTGGGTAAACCAGACATATGTCAACATCAGCAATACCAATTTTCTTACTGAGAAAGCTGTGGCTTCAGTAACATTAGCGGGCAATTCATCTCTTTGCCCCATTAGTGGATGGGCTGTATACAGTAAGGACAACGGTATAAGAATCGGTTCCAAGGGGGATGTGTTTGTTATAAGAGAGCCGTTCATCTCATGCTCCCACTTGGAATGCAGAACTTTCTTTTTGACTCAGGGAGCCTTGCTGAATGACAAGCATTCTAATGGGACCGTCAAAGACAGAAGCCCTCACAGAACATTAATGAGTTGTCCCGTGGGTGAGGCTCCTTCCCCATACAACTCGAGGTTTGAGTCTGTTGCTTGGTCGGCAAGTGCTTGTCATGATGGCACTAGTTGGTTGACAATTGGAATTTCTGGCCCAGACAATGGGGCTGTGGCTGTATTGAAATACAATGGCATAATAACAGACACTATCAAGAGTTGGAGGAACAACATAATGAGAACTCAAGAGTCTGAATGTGCATGTGTAAATGGCTCTTGCTTTACTGTTATGACTGATGGACCAAGTAATGGGCAGGCTTCATACAAAATCTTCAGAATAGAAAAAGGGAAAGTAGTTAAATCAGCCGAATTAAATGCCCCTAATTATCACTATGAGGAGTGCTCCTGTTATCCTGATGCTGGAGAAATCACATGTGTGTGCAGGGATAACTGGCATGGCTCAAATCGGCCATGGGTATCTTTCAATCAAAATTTGGAGTATCGAATAGGATATATATGCAGTGGAGTTTTCGGAGACAATCCACGCCCCAATGATGGGACAGGCAGTTGTGGTCCGGTGTCCCCTAAAGGGGCATATGGAATAAAAGGGTTCTCATTTAAATACGGCAATGGTGTTTGGATCGGGAGAACCAAAAGCACTAATTCCAGGAGCGGCTTTGAAATGATTTGGGATCCAAATGGATGGACTGGTACGGACAGTAATTTTTCAGTAAAGCAAGATATTGTAGCTATAACCGATTGGTCAGGATATAGCGGGAGTTTTGTCCAGCATCCAGAACTGACAGGATTAGATTGCATAAGACCTTGTTTCTGGGTTGAGCTAATCAGAGGGCGGCCCAAAGAGAGCACAATTTGGACTAGTGGGAGCAGCATATCCTTTTGTGGTGTAAATAGTGACACTGTGGGTTGGTCTTGGCCAGACGGTGCTGAGTTGCCATTCACCATTGACAAGTAGTTTGTTCAAAAAACTCCTTGTTTCTACT')
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#--------Protein sequence analysis--------------
+
+# BLAST search for AA sequences similar to AAseq
+myBlast <- blastSequences(AAseq, as = 'data.frame', hitListSize = 8, timeout = 180, program = 'blastp', 'nr')
+
+# protein ID
+AAID <- myBlast$Hit_def
+print(AAID[2:8])
+```
+### Unknown protein sequence matched with **'neuraminidase'** protein of the Influenza A virus via the NCBI database
+
+Neuraminidase is an enzyme protein present on the surface of the Influenza virus. This protein is often used as an antigen in vaccines to prevent the spread of influenza. Presence of the protein in the blood sample suggests influenza infection.
+
+This is often not a cause for concern and likely not the cause of the life-threatening illness.  Treatment should include rest, hydration, and anti-inflammatories in the case of fever and muscle pain.
+
+Learn more about Influenza [here](https://en.wikipedia.org/wiki/Influenza) 
+
+
+
+
+
+
+
+
+
+# Protein sequence analysis
+### A phylogenetic relationship of the 8 most closely related neuraminidase **protein** sequences
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Align seqs
+myHits <- data.frame(ID = c('patient', myBlast$Hit_accession),
+                     Seq = c(AAseq, myBlast$Hsp_hseq),
+                     stringsAsFactors = F)
+
+myHitSeqs <- sapply(myHits$Seq, strsplit, split = '')
+names(myHitSeqs) <- paste(1:nrow(myHits), myHits$ID, sep = '_')
+
+myHitSeqs <- as.AAbin(myHitSeqs)
+
+myAlign <- muscle(myHitSeqs, quiet = F)
+
+#examine sequence distances
+myDM <- dist.aa(myAlign)
+
+
+#create tree
+myTree <- nj(myDM)
+
+ggtree(myTree)+
+  geom_tiplab()
+
+```
+
+
+#DNA sequence analysis
+
+### DNA sequence alignment of the 12 most closely related matches 
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+#--------DNA sequence analysis------------------
+
+# load sequences and set into dataframe
+dnaBlast <- blastSequences(DNAseq, as = 'data.frame', hitListSize = 12, timeout = 180)
+
+dnaHits <- data.frame(ID = c('patient',dnaBlast$Hit_accession),
+                     Seq = c(DNAseq, dnaBlast$Hsp_hseq),
+                     stringsAsFactors = F)
+
+dnaHitSeqs <- sapply(dnaHits$Seq, strsplit, split = '')
+names(dnaHitSeqs) <- paste(1:nrow(dnaHits), dnaHits$ID, sep = '_')
+
+# align sequences with muscle
+dnaHitSeqs <- as.DNAbin(dnaHitSeqs) 
+
+alignedSeqs <- muscle(dnaHitSeqs, quiet = F)
+
+# analyze sequences
+checkAlignment(alignedSeqs[1:12, 25:500], what = 1)
+```
+
+
+
+### A phylogenetic relationship of the 12 most closely related neuraminidase **DNA** sequences and a heatmap comparing sequence similarity
+```{r}
+#distance matrix and phylogenetic tree
+myDM <- dist.dna(alignedSeqs, model = 'K80')
+myDMmat <- as.matrix(myDM)
+
+myDNATree <- nj(myDMmat)
+
+ggtree(myDNATree) +
+  geom_tiplab()
+
+fMat <- melt(myDMmat)
+
+ggplot(fMat, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradientn(colours = c('red', 'orange', 'yellow', 'white'))
+
+```
+
+
+
+
+
+
+# Appendix I - alternative models
+### F84 model- comparison of the phylogenetic tree output and heatmap graph
+```{r}
+# model F84 - tree
+myDM_F84 <- dist.dna(alignedSeqs, model = 'F84')
+myDMmat_F84 <- as.matrix(myDM_F84)
+
+myDNATree_F84 <- nj(myDMmat_F84)
+
+ggtree(myDNATree_F84) +
+  geom_tiplab()
+
+# heatmap
+fMat_F84 <- melt(myDMmat_F84)
+
+ggplot(fMat_F84, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradientn(colours = c('red', 'orange', 'yellow', 'white'))
+```
+
+- Model F84 provides a phylogenetic tree and heatmap identical to the K80 model
+
+
+### TN93 model - comparison of phylogenetic tree and heatmap graph
+```{r}
+# model TN93
+myDM_TN93 <- dist.dna(alignedSeqs, model = 'TN93')
+myDMmat_TN93 <- as.matrix(myDM_TN93)
+
+myDNATree_TN93 <- nj(myDMmat_TN93)
+
+ggtree(myDNATree_TN93) +
+  geom_tiplab()
+
+# heatmap
+fMat_TN93 <- melt(myDMmat_TN93)
+
+ggplot(fMat_TN93, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradientn(colours = c('red', 'orange', 'yellow', 'white'))
+```
+
+- The TN93 model also creates a phylogenetic tree and heatmap identical to the K80 model
+
+
+
+## Comparison of the neighbor-joining and minimum evolution trees for the F84 model
+
+### Neighbor-joining
+```{r}
+
+ggtree(myDNATree_F84) +
+  geom_tiplab()
+```
+
+### Minimum evolution 
+```{r}
+
+NJtree <- fastme.bal(myDMmat_F84)
+
+ggtree(NJtree) +
+  geom_tiplab()
+```
+
+- The neighbor-joining and minimum evolution trees create similar, but not identical phylogenetic trees. It can be seen that some closely-related sequences sequences (including that of the patient) are in different positions near the base of he tree. However, as any node of a phylogenetic tree can be rotated and the lengths of the branches are the same, the phylogenetic relationships are the same.
